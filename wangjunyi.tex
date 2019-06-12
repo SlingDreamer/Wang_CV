@@ -1,0 +1,454 @@
+\documentclass[conference]{IEEEtran}
+\IEEEoverridecommandlockouts
+% The preceding line is only needed to identify funding in the first footnote. If that is unneeded, please comment it out.
+\usepackage{cite}
+\usepackage{amsmath,amssymb,amsfonts}
+\usepackage{algorithmic}
+\usepackage{multirow}
+\usepackage{graphicx}
+\usepackage{textcomp}
+\usepackage{xcolor}
+\def\BibTeX{{\rm B\kern-.05em{\sc i\kern-.025em b}\kern-.08em
+    T\kern-.1667em\lower.7ex\hbox{E}\kern-.125emX}}
+\begin{document}
+
+\title{Gate Auto Encoder:Enriching Intention of Human Motion Prediction*\\
+{\footnotesize \textsuperscript{*}Note: Sub-titles are not captured in Xplore and
+should not be used}
+\thanks{Identify applicable funding agency here. If none, delete this.}
+}
+
+\author{\IEEEauthorblockN{1\textsuperscript{st} Given Name Surname}
+\IEEEauthorblockA{\textit{dept. name of organization (of Aff.)} \\
+\textit{name of organization (of Aff.)}\\
+City, Country \\
+email address}
+\and
+\IEEEauthorblockN{2\textsuperscript{nd} Given Name Surname}
+\IEEEauthorblockA{\textit{dept. name of organization (of Aff.)} \\
+\textit{name of organization (of Aff.)}\\
+City, Country \\
+email address}
+\and
+\IEEEauthorblockN{3\textsuperscript{rd} Given Name Surname}
+\IEEEauthorblockA{\textit{dept. name of organization (of Aff.)} \\
+\textit{name of organization (of Aff.)}\\
+City, Country \\
+email address}
+\and
+\IEEEauthorblockN{4\textsuperscript{th} Given Name Surname}
+\IEEEauthorblockA{\textit{dept. name of organization (of Aff.)} \\
+\textit{name of organization (of Aff.)}\\
+City, Country \\
+email address}
+\and
+\IEEEauthorblockN{5\textsuperscript{th} Given Name Surname}
+\IEEEauthorblockA{\textit{dept. name of organization (of Aff.)} \\
+\textit{name of organization (of Aff.)}\\
+City, Country \\
+email address}
+\and
+\IEEEauthorblockN{6\textsuperscript{th} Given Name Surname}
+\IEEEauthorblockA{\textit{dept. name of organization (of Aff.)} \\
+\textit{name of organization (of Aff.)}\\
+City, Country \\
+email address}
+}
+
+\maketitle
+
+\begin{abstract}
+Human motion prediction involving in natural motion synthesis,visualization,augmented reality and human-computer interaction is a intersection of computer graphics and artificial intelligence. Recent methods fasten on sequence-to-sequence recurrent neural networks (RNNs) to realize the functions such as the estimate data generation and synthetic future human poses. we focused on recent work and find that the intention information of the time series data cannot be learned by the RNN model, which cause occasional unrealistic artifacts,for example, when the known motion sequence is a periodic motion such as walking, the model cannot judge whether the future motion is periodically walking or has other purposes during long-term action prediction,moreover, the model cannot generate more purposeful actions by own intentions . We propose a novel sequence-to-sequence bidirectional RNN model and a gate auto encoder(GAE) to analyze and conserve the intention information during the training process, with the aim of intervening in the prediction results by backward pass. The experimental results show that the model obtains state-of-the-art performance on long-term human motion prediction. Furthermore, the model can synthesize future human poses by giving specified intention.
+\end{abstract}
+
+\begin{IEEEkeywords}
+component, formatting, style, styling, insert
+\end{IEEEkeywords}
+
+\section{Introduction}
+learning through a large number of motion trajectory sequences, the model is competent in predicting future motion sequences by inputting the known historical sequences, and synthesizing continuous sequences intentionally by inputting the the historical sequences and assigning a certain intention. The two applications span in the fields of intelligent robots and augmented reality. robots need to analyze and predict the motion of objects in the scene in order to implement the interaction between of the machine and the scene such as avoiding pedestrians , on the other hand, complicated motion model by learning is required by robots and virtual objects to generate vivid movement by own.  
+we concentrate on 3D human skeleton sequence data, which regards the three-dimensional human body as a combination of rigid bodies connected by joint points [1]. At present, the works focus on the prediction of human skeletal sequences,the main method of modeling is using RNN model. Based on the structure of encoder-decoder [7], the historical skeletal sequences are sequentially inputted into RNN encoder network and the last hidden state is retained as an internal representation,then the decoder network receive the hidden state to predict future sequences. long short-term memory (LSTM)[5] and gated recurrent unit (GRU) [6] are generally used in this kind of RNN model , which are considered to be able to analyze the temporal dependence of sequence data, especially long-term sequences.Actually, although the long-term action information of known sequence can be encoded into the hidden state by RNN, but decoder network is only valid for short-term prediction,simple historical information is not enough to judge the long-term future human behavior,because the prediction results is actually a short-term inertial movements based on the historical characteristics of human skeletal joints. So although recent works have tried to improve the structure of the model, including proposing residual structure and optimizing loss function, the results in the model in short-term prediction become smooth and more accurate, but the results in long-term prediction have not improved much.
+As shown in Figure 1, the results of LSTM-3LR[2] and Res-Gru[3] which are typical inertial prediction models show that the long-term human motion prediction tends to converge to the mean posture and fails to generate action dynamically. In fact, different skeletal nodes of the human body in different action intention should be in different states at different times. For example,joints of hand and leg should be in periodic motion state during periodic movements such as walking, while all joints of body will be stationary after completing a certain target during a non-periodic movements such as sitting.
+We summarize the previous work and propose that the training should provide both the historical and the future information for the model. We define the basic structure of the model as Bi-RNN, and use the Decoder-Encoder structure in both directions,the forward network encode history sequences,the backward network encode future sequence. the training is divided into two stages,the first stage is to train forward RNN separately, which enables the model to predict human inertial actions based on the historical information,then the backward network is trained in the second stage, which makes it possible to supplement the results of forward network with the clearer purpose from the future information. However, in actual application scenarios, the information could obtained by the model is only the historical skeleton sequence and the action target,not the future skeleton sequence. The action target is not the same as the future skeletal sequence provided to the backward network during the training,but it needs to have the same amount of information as the future sequence. 
+We find that the action target can be also obtained during the training and expressed in vector , compared with the inertial motion predicted by forward network, we find that what backward network learns during the training is actually the information of restraint and activation about skeletal nodes,for different types of motion, the model can use this vector to judge whether a skeletal action is related to the skeletal nodes. The joint movement and inhibition information of different types of movements can be summarized from the long-term training,for example, sitting  need to activate lower body joints and inhibit upper body joints,and the periodic movements need to maintain the active joints in a state of periodicity, etc. According to these characteristics, we call the target vector as the long-term action state. In fact, the long-term action state is acquired through training GAE, GAE resembles the higher-dimensional RNN units, and the difference is that the RNN units record the historical information of a sequence during a single training, while GAE will analyze all last hidden state from backward encoder and summarize the characteristics of each hidden state for each type of motion.In the prediction phase, GAE and the backward decoder are combined into a higher-dimensional Encoder-Decoder structure, so the long-term action state is the last hidden state of the higher-dimensional Encoder.
+Because of the proposition of the bi-RNN structure and GAE, the parameters of the entire model will be doubled compared with the previous one-way RNN structural model. However,since the training is divided into two stages and half of the parameters are always frozen, the number of parameters, the depth of the model and the difficulty of fitting remain unchanged. At the same time, we borrowed a residual architecture that models first-order motion derivatives in both side direction, which results in smooth and much more accurate.
+Our contributions are summarized as follows: 
+\begin{itemize}
+\item[$\bullet$] We propose that the short-term action prediction is a short-term inertia prediction results after the model analyzes the skeletal motion characteristics, and propose that long-term action state can be acquired by training GAE, which can improve the long-term action prediction through activating or suppressing the joint points.\\
+\item[$\bullet$]  The model can perform human action synthesis according to the specified action intention.\\
+\end{itemize}
+
+\section{Related Works}
+\subsection{Human Posture Modeling}
+As the basis of human action analysis, human posture modeling was formally proposed by Aggarwal and Cai[1] in 1997,it mainly proposed that the three-dimensional structure of human body should be regarded as a combination of rigid bodies connected by joint points, which is adopted in later works. At present, researchers can obtain human motion data such as Kinect by motion capture system. For example, NTURGB-D [11] data set is the largest available RGB-D data set and skeleton-based data set obtained by Microsoft Kinect V2 sensor. In addition, Brand[20] proposed to extract human posture information from static images. We will use human 3.6[12] data, which is one of the largest available datasets derived from motion capture (MoCap) data.
+\subsection{Early Human Motion Analysis}
+Because of the high dimensionality and probability of human motion, most of the early work focused on the extension of various probabilistic models,so Bayesian networks such as Hidden Markov Models (HMMs) are popular with the researchers. Pavlovic[4] propose effective models of human dynamics can be learned from motion capture data using switching linear dynamic system (SLDS) models and introduce a new variational inference algorithm to cast the SLDS model as a Dynamic Bayesian Network. Koppula[8] used a conditional random field (CRF), trained with max-margin methods, to model the rich spatio-temporal relations between the objects and humans in the scene. Taylor[9] propose a non-linear generative model for human motion data that uses an undirected model with binary latent variables and real-valued “visible” variables that represent joint angles.Lehrmann[10] proposed to instead use simple Markov models that only model observed quantities and use a random forest to choose a linear system.
+\subsection{Human Motion Analysis Based On Depth Models}
+At present, the method based on depth learning is better than the traditional method,and our work is also based on depth neural network.Ashesh Jain[18] propose an approach for combining the power of high-level spatio-temporal graphs and sequence learning success of RNN called Structure-RNN(s-RNN),which shows improvement ranging from modeling human motion to object interactions. Fragkiadaki[13] proposed a RNN model with encoder-decoder structure,which was introduced to learn the temporal variation of human motion through LSTM, and the results exceed the traditional model in that year. Ashesh Jain[17] proposed a new encoder-decoder model, Res-GRU, which introduced the advantages of ResNet [16] and replaced LSTM with GRU. The model obtained the best prediction results in that year. Similarly, in 2017, Ghosh et al. of ETH Zurich University in Switzerland proposed a Dropout automatic encoder (Dae) [14] to reduce the cumulative error of encoder-decoder model in prediction.Tang[19] proposed a modified high way unit (MHU) for efficiently eliminating motionless joints and estimating next pose given the motion context.
+
+\section{Our Model}
+In this section, we describe our method for building the model and GAE. The whole model is divided into two parts. First, we describe the process of building Bi-RNN. We summarized the recent works [13, 14, 15, 17] for human prediction,all these works use Human 3.6 [12] dataset for 3D human activity,in addition, some work has been done to discuss the application methods in the fields of image and video [15]. The second part will describe the construction of GAE, which is a higher dimensional RNN structure independent of Bi-RNN. The internal structure of the unit is similar to the RNN units such as LSTM and GRU.
+\subsection{Bi-RNN structure}
+To predict human action,we have a human action sequence $\{x^k\}^T_{k=1}$, 
+we intercept the M-length part $\{x^k\}^T_{k=1} (M < T)$ from the sequence,
+and give this part to the model as the historical human action sequence,we expect the model to predict the sequence $\{x^{'k}\}^{T-M}_{k=1}$,
+which close to the ground truths.
+Depending on the datasets such as human 3.6, $x$ in $\{x^k\}^T_{k=1}$ are a vector of independent joint angles,which means the temporal human action can be parameterize rotation vectors in 3D Euclidean space.
+According to the latest method[18,19], in the Encoder-Decoder model, we input $\{x^k\}^{M-1}_{k=1}$ into the encoder network,then we acquire the semantic coding vector  $c$,
+which contains useful information from $\{x^k\}^{M-1}_{k=1}$ and will be the initial state of the hidden state of the decoder network:
+\begin{equation}
+c = h^0 = RNN_{encoder}(x^k)^{M-1}_{k=1}\label{1}
+\end{equation}
+According to the suggestion in [17], we share the weight between encoder network and decoder network,
+that means $\{W , b\}_{encoder} = \{W,b\}_{decoder}$,
+the experimental results show that sharing weight not only does not reduce the accuracy of prediction,
+but also can reduce the number of parameters and accelerate the speed of model fitting during training.
+Moreover,we have added the residual architecture, we use $x^M$ as the first input to decoder network,
+after that, the decoder's last output is the current input, 
+and the current decoder's output will add the last output as the real output,
+so the first $T - M$ outputs of decoder are the prediction results $\{x^{'k}\}^{T-M}_{k=1}$,
+$x^{'1} = RNN(x^M , h^0)$ and the rest of the results for $k > 1$ are:
+\begin{equation}
+x^{'k+1} = x^{'k} + RNN_{decoder}(x^{'k} , h^{k-1})\label{2}
+\end{equation}
+\subsubsection{Backward RNN structure}
+Such the models only provide the M-length historical sequence information for training, and it will lead to the accumulation of errors if each input is the result of the last prediction,because the prediction are not exactly the same as the ground truth. For this reason, we add backward network to correct the errors,and during training, we provide the future sequence $\{x^k\}^{T+M}_{k=T+1}$.
+So the whole model is composed of two RNN in opposite directions, as shown in Figure 2, unlike the forward decoder, the task of backward decoder is no longer to predict the results , but to correct the errors of results based on the output of forward decoder and backward decoder hidden state. backward encoder is identical to \eqref{2} during training,
+but we use AGE and long action state instead of backward encoder for testing,which will be mentioned detailedly in the next section.
+The forward decoder and backward decoder constitute a cascade structure of the upper and lower relations, which leads to depth increase of the model and discontinuity of the prediction results. We observed that the problem can be solved by connecting two layers of network with residual architecture, and the two layers are trained separately in two different stages, so the final result is the sum of forward and backward:
+\begin{equation}
+x^{''k} = x^{'k} + RNN_{back_dec}(x^{'k} , h_{back_dec})\label{3}
+\end{equation}
+Forward decoder predict results, and backward decoder corrects the results by the results and hidden state based on residual method. Finally,forward network and backward network will divide labor,the former predicts human behavior under natural conditions in a short-term, while the backward adjusts the movement of skeletal nodes according to the action target for a long-term.
+
+\subsection{Gate Auto Encoder}
+Motions are related to human joints, such as "walking" links the joints of the hands and legs, while "siting" links the lower half of the body. Past work only predicts the motion trajectories in the future by observing the motion trajectories of all body nodes, and does not focus on and activate the specific nodes according to the characteristics of the motion itself. Moreover, in the latest encoder-decoder mode, in order to ensure the continuity of the action, the prediction result of the previous frame is the basis for predicting the current frame, which causes the prediction to accumulate errors, and the redundant activities of some joint points are gradually enlarged in the iteration.
+The information, which contains the nodes corresponding to a particular motion, 
+can be retrieved in training and represented in the form of a vector, which we call long action state $s_l$.
+We observed that for the same action, although $\{x^k\}^{T+M}_{k=T+1}$ of each training comes from different stages of the action, 
+the information they receive after the backward encoder is related, they are all explaining whether to suppress or activate the specific joint point.
+So we put GAE between the encoder and decoder of the backward network, 
+it is like a RNN unit, especially GRU, and the long action state is actually the hidden state of the last round of GAE.
+\begin{equation}
+s^k_l = GAE(c^k_f , c^k_b , s^{k-1}_l)\label{4}
+\end{equation}
+\subsubsection{GAE structure details}
+We found that if the input of GAE only comes from the backward encoder, and finally the long action state is a fixed value like RNN hidden state, 
+the initial hidden state of the backward decoder could only use this fixed value for the prediction of the same action. 
+The actual effect does not meet expectation, because the initial value of the hidden state of the backward decoder during training is based on the phase of the input action,
+in other words, for the same action, 
+although the long action state contains the activation and suppression information of the human joint nodes,but the stage of the action is different,
+for example, the action “siting” has different activation and suppression requirements for nodes at the beginning and ending stage. 
+Moreover, this is not a good choice, that GAE and RNN model training are synchronously based on the prediction results and the ground truth, 
+since it will increase the parameters of the training and the depth of the model.
+
+As \eqref{4}, we found that the forward encoder $c_f$ contains phase information,because observable historical and future sequences are intercepted from the same continuous period of time, their stage information is the same.
+So GAE training requires three values: long action state $s_l$, forward encoder $c_f$ and backward encoder $c_b$.
+As shown in Figure 2, we adopts the structure of GRU[6], which is composed of three neural networks: update gate, reset gate,
+tanh,wherein the update gate is used to control the degree to which the state information of the long action state $c_l$ is brought into the current state,the reset gate is used to merge the long action state $c_l$ and the current action state $s_c$, and tanh is used to get the information implicit in $c_f$ and $c_l$ to generate the current action state $s_c$ :
+\begin{equation}
+\begin{aligned}
+z &= \sigma(W_z[s_l,c_f]) \\
+s_c = &\tanh(W_h \cdot [r * s_l , c_f])
+\end{aligned}
+\end{equation}
+The update mode of $c_l$ is consistent with the hidden state of GRU, 
+$c_f$ is input, and we added a loss function $l_{GAE}$ in GAE during training. We use the L2 norm to calculate the difference between $s_c$ and $c_b$.
+\begin{equation}
+l_{GAE} = \left \| s_c - c_b \right \|_2
+\end{equation}
+During training, GAE will train individual by $l_{GAE}$ and record the long action state $c_l$. In test, the joint nodes information is implicit in $c_l$, the phase information is implicit in $c_f$, and $s_c$ contains both of these information, $s_c$ is the same as the function of the backward encoder $c_b$ during training.
+
+\section{Experiment}
+We need to divide the training process into two stages,we trained Forward RNN during the first stage, then trained Backward RNN and GAE during the second stage. We will validate our model's ability through two applications, one is to generate motion based on target and observation sequence, and the other is to predict motion based on observation sequence. The dataset we use is human 3.6[12] captured by a Vicon MoCap system, which is the largest human motion dataset for 3D body pose. 3.6M means the dataset contains 3.6 million 3D human poses, moreover, it contains 17 actions classes including some periodic activities like "walking" and some non-periodic activities like "smoking". These actions are preformed by eleven actors at 50 frames per second. Human3.6m skeletons have 32 joints,and we used the method of [18], which can converted the skeleton data from its angle representation to absolute 3D joint positions.
+
+\begin{table*}[!htbp]
+\centering
+\caption{We compare the prediction accuracy of several models by showing mean angle error for walking, eating, smoking and discussion as examples. In addition, "all" represents the average error value of all 15 actions in human 3.6.}\label{tab1}
+\begin{tabular}{|c|c|c|c|c|c|c|c|c|c|c|c|c|c|c|c|c|}
+%\toprule
+\hline
+\multirow{2}*{}& \multicolumn{4}{|c|}{Short-term} &\multicolumn{4}{|c|}{Long-term} &\multicolumn{4}{|c|}{Short-term} &\multicolumn{4}{|c|}{Long-term} \\
+\cline{2-17}
+\multicolumn{1}{|c|}{\multirow{2}*{}}& \multicolumn{8}{|c|}{Walking}& \multicolumn{8}{|c|}{Eating}\\
+\hline
+milliseconds&80&160&320&400&560&640&720&1000&80&160&320&400&560&640&740&1000\\
+\hline
+ERD&0.78&0.90&1.12&1.25&1.44&1.45&1.45&1.46&1.27&1.45&1.66&1.80&1.86&2.02&2.10&2.58\\
+\hline
+LSTM-3LR&0.72&0.79&1.06&1.18&1.33&1.33&1.37&1.36&0.89&1.09&1.35&1.46&1.62&1.87&2.18&2.61\\
+\hline
+Zero-velocity&0.39&0.68&0.99&1.15&1.35&1.37&1.37&1.32&0.27&0.48&0.73&0.86&1.12&1.47&1.74&2.14\\
+\hline
+Res-GRU&0.27&0.47&0.68&0.76&0.90&0.94&0.99&1.06&0.23&0.39&0.62&0.76&0.93&1.12&1.33&1.98\\
+\hline
+MHU&0.32&0.53&0.69&0.77&0.90&0.94&0.97&1.06&0.23&0.38&0.59&0.70&0.79&0.99&1.13&1.35\\
+\hline
+GAE(Our)&0.28&0.37&0.49&0.51&0.53&0.56&0.58&0.58&0.30&0.36&0.51&057&0.66&0.72&0.79&0.84\\
+\hline
+\multicolumn{1}{|c|}{}& \multicolumn{8}{|c|}{Discussion}& \multicolumn{8}{|c|}{Sitting}\\
+\hline
+milliseconds&80&160&320&400&560&640&720&1000&80&160&320&400&560&640&720&1000\\
+\hline
+ERD&0.76&0.96&1.17&1.24&1.57&1.70&1.84&2.04&1.01&1.32&1.52&1.70&2.02&2.34&2.48&2.71\\
+\hline
+LSTM-3LR&0.70&0.82&1.04&1.12&1.55&1.62&1.76&1.98&0.93&1.19&1.44&1.63&1.98&2.26&2.51&2.72\\
+\hline
+Zero-velocity&0.31&0.69&1.03&1.12&1.52&1.61&1.70&1.87&0.43&1.12&1.41&1.58&1.80&2.11&2.27&2.43\\
+\hline
+Res-GRU&0.31&0.67&0.97&1.04&1.41&1.56&1.71&1.96&0.41&1.04&1.49&1.63&1.89&2.23&2.31&2.59\\
+\hline
+MHU&0.31&0.66&0.93&1.00&1.37&1.51&1.66&1.88&0.41&1.03&1.47&1.59&1.77&2.08&2.20&2.28\\
+\hline
+GAE(Our)&0.35&0.48&0.64&0.66&0.85&0.88&0.90&0.94&0.41&0.47&0.68&0.98&1.06&1.08&1.12&1.13\\
+\hline
+\multicolumn{1}{|c|}{}& \multicolumn{8}{|c|}{Smoking}& \multicolumn{8}{|c|}{All}\\
+\hline
+milliseconds&80&160&320&400&560&640&720&1000&80&160&320&400&560&640&720&1000\\
+\hline
+ERD&1.66&1.95&2.35&2.42&2.58&2.69&2.86&2.78&0.93&1.07&1.31&1.41&1.58&1.64&1.70&1.95\\
+\hline
+LSTM-3LR&1.34&1.65&2.04&2.16&2.42&2.70&2.82&2.84&0.87&0.93&1.19&1.30&1.49&1.55&1.62&1.89\\
+\hline
+Zero-velocity&0.26&0.48&0.97&0.95&1.03&1.46&1.67&1.86&0.39&0.68&1.01&1.20&1.42&1.50&1.57&1.85\\
+\hline
+Res-GRU&0.33&0.61&1.04&1.19&1.24&1.58&1.73&1.92&0.40&0.72	&1.09&1.23&1.45&1.52&1.59&1.89\\
+\hline
+MHU&0.33&0.62&1.08&1.05&1.12&1.45&1.58&1.74&0.39&0.68&1.01&1.13&1.34&1.42&1.49&1.80\\
+\hline
+GAE&0.41&0.62&0.73&0.78&0.82&0.86&0.91&0.98&0.40\\						
+\hline
+%\bottomrule %添加表格底部粗线
+\end{tabular}
+\end{table*}
+
+
+\begin{table}[!htbp]
+\centering
+\begin{tabular}{|c|c|c|c|c|c|c|}
+\hline
+\ \multirow{2}*{$S_i$} & \multicolumn{3}{|c|}{things} &\multicolumn{3}{|c|}{woking}\\
+\cline{2-7}
+\multicolumn{1}{|c|}{} &\multicolumn{3}{|c|}{50}&\multicolumn{3}{|c|}{50}\\
+\hline
+\multirow{4}*{stratgy}&50&0&100&200&300&300\\
+\cline{2-7}
+&100&100&0&100&200&200\\
+\cline{2-7}
+&150&200&100&0&100&200\\
+\cline{2-7}
+&200&300&200&100&0&300\\
+\hline
+\end{tabular}
+\end{table}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+\subsection{Abbreviations and Acronyms}\label{AA}
+Define abbreviations and acronyms the first time they are used in the text, 
+even after they have been defined in the abstract. Abbreviations such as 
+IEEE, SI, MKS, CGS, ac, dc, and rms do not have to be defined. Do not use 
+abbreviations in the title or heads unless they are unavoidable.
+
+\subsection{Units}
+\begin{itemize}
+\item Use either SI (MKS) or CGS as primary units. (SI units are encouraged.) English units may be used as secondary units (in parentheses). An exception would be the use of English units as identifiers in trade, such as ``3.5-inch disk drive''.
+\item Avoid combining SI and CGS units, such as current in amperes and magnetic field in oersteds. This often leads to confusion because equations do not balance dimensionally. If you must use mixed units, clearly state the units for each quantity that you use in an equation.
+\item Do not mix complete spellings and abbreviations of units: ``Wb/m\textsuperscript{2}'' or ``webers per square meter'', not ``webers/m\textsuperscript{2}''. Spell out units when they appear in text: ``. . . a few henries'', not ``. . . a few H''.
+\item Use a zero before decimal points: ``0.25'', not ``.25''. Use ``cm\textsuperscript{3}'', not ``cc''.)
+\end{itemize}
+
+\subsection{Equations}
+Number equations consecutively. To make your 
+equations more compact, you may use the solidus (~/~), the exp function, or 
+appropriate exponents. Italicize Roman symbols for quantities and variables, 
+but not Greek symbols. Use a long dash rather than a hyphen for a minus 
+sign. Punctuate equations with commas or periods when they are part of a 
+sentence, as in:
+\begin{equation}
+a+b=\gamma\label{eq}
+\end{equation}
+
+Be sure that the 
+symbols in your equation have been defined before or immediately following 
+the equation. Use ``\eqref{eq}'', not ``Eq.~\eqref{eq}'' or ``equation \eqref{eq}'', except at 
+the beginning of a sentence: ``Equation \eqref{eq} is . . .''
+
+\subsection{\LaTeX-Specific Advice}
+
+Please use ``soft'' (e.g., \verb|\eqref{Eq}|) cross references instead
+of ``hard'' references (e.g., \verb|(1)|). That will make it possible
+to combine sections, add equations, or change the order of figures or
+citations without having to go through the file line by line.
+
+Please don't use the \verb|{eqnarray}| equation environment. Use
+\verb|{align}| or \verb|{IEEEeqnarray}| instead. The \verb|{eqnarray}|
+environment leaves unsightly spaces around relation symbols.
+
+Please note that the \verb|{subequations}| environment in {\LaTeX}
+will increment the main equation counter even when there are no
+equation numbers displayed. If you forget that, you might write an
+article in which the equation numbers skip from (17) to (20), causing
+the copy editors to wonder if you've discovered a new method of
+counting.
+
+{\BibTeX} does not work by magic. It doesn't get the bibliographic
+data from thin air but from .bib files. If you use {\BibTeX} to produce a
+bibliography you must send the .bib files. 
+
+{\LaTeX} can't read your mind. If you assign the same label to a
+subsubsection and a table, you might find that Table I has been cross
+referenced as Table IV-B3. 
+
+{\LaTeX} does not have precognitive abilities. If you put a
+\verb|\label| command before the command that updates the counter it's
+supposed to be using, the label will pick up the last counter to be
+cross referenced instead. In particular, a \verb|\label| command
+should not go before the caption of a figure or a table.
+
+Do not use \verb|\nonumber| inside the \verb|{array}| environment. It
+will not stop equation numbers inside \verb|{array}| (there won't be
+any anyway) and it might stop a wanted equation number in the
+surrounding equation.
+
+\subsection{Some Common Mistakes}\label{SCM}
+\begin{itemize}
+\item The word ``data'' is plural, not singular.
+\item The subscript for the permeability of vacuum $\mu_{0}$, and other common scientific constants, is zero with subscript formatting, not a lowercase letter ``o''.
+\item In American English, commas, semicolons, periods, question and exclamation marks are located within quotation marks only when a complete thought or name is cited, such as a title or full quotation. When quotation marks are used, instead of a bold or italic typeface, to highlight a word or phrase, punctuation should appear outside of the quotation marks. A parenthetical phrase or statement at the end of a sentence is punctuated outside of the closing parenthesis (like this). (A parenthetical sentence is punctuated within the parentheses.)
+\item A graph within a graph is an ``inset'', not an ``insert''. The word alternatively is preferred to the word ``alternately'' (unless you really mean something that alternates).
+\item Do not use the word ``essentially'' to mean ``approximately'' or ``effectively''.
+\item In your paper title, if the words ``that uses'' can accurately replace the word ``using'', capitalize the ``u''; if not, keep using lower-cased.
+\item Be aware of the different meanings of the homophones ``affect'' and ``effect'', ``complement'' and ``compliment'', ``discreet'' and ``discrete'', ``principal'' and ``principle''.
+\item Do not confuse ``imply'' and ``infer''.
+\item The prefix ``non'' is not a word; it should be joined to the word it modifies, usually without a hyphen.
+\item There is no period after the ``et'' in the Latin abbreviation ``et al.''.
+\item The abbreviation ``i.e.'' means ``that is'', and the abbreviation ``e.g.'' means ``for example''.
+\end{itemize}
+An excellent style manual for science writers is \cite{b7}.
+
+\subsection{Authors and Affiliations}
+\textbf{The class file is designed for, but not limited to, six authors.} A 
+minimum of one author is required for all conference articles. Author names 
+should be listed starting from left to right and then moving down to the 
+next line. This is the author sequence that will be used in future citations 
+and by indexing services. Names should not be listed in columns nor group by 
+affiliation. Please keep your affiliations as succinct as possible (for 
+example, do not differentiate among departments of the same organization).
+
+\subsection{Identify the Headings}
+Headings, or heads, are organizational devices that guide the reader through 
+your paper. There are two types: component heads and text heads.
+
+Component heads identify the different components of your paper and are not 
+topically subordinate to each other. Examples include Acknowledgments and 
+References and, for these, the correct style to use is ``Heading 5''. Use 
+``figure caption'' for your Figure captions, and ``table head'' for your 
+table title. Run-in heads, such as ``Abstract'', will require you to apply a 
+style (in this case, italic) in addition to the style provided by the drop 
+down menu to differentiate the head from the text.
+
+Text heads organize the topics on a relational, hierarchical basis. For 
+example, the paper title is the primary text head because all subsequent 
+material relates and elaborates on this one topic. If there are two or more 
+sub-topics, the next level head (uppercase Roman numerals) should be used 
+and, conversely, if there are not at least two sub-topics, then no subheads 
+should be introduced.
+
+\subsection{Figures and Tables}
+\paragraph{Positioning Figures and Tables} Place figures and tables at the top and 
+bottom of columns. Avoid placing them in the middle of columns. Large 
+figures and tables may span across both columns. Figure captions should be 
+below the figures; table heads should appear above the tables. Insert 
+figures and tables after they are cited in the text. Use the abbreviation 
+``Fig.~\ref{fig}'', even at the beginning of a sentence.
+
+\begin{table}[htbp]
+\caption{Table Type Styles}
+\begin{center}
+\begin{tabular}{|c|c|c|c|}
+\hline
+\textbf{Table}&\multicolumn{3}{|c|}{\textbf{Table Column Head}} \\
+\cline{2-4} 
+\textbf{Head} & \textbf{\textit{Table column subhead}}& \textbf{\textit{Subhead}}& \textbf{\textit{Subhead}} \\
+\hline
+copy& More table copy$^{\mathrm{a}}$& &  \\
+\hline
+\multicolumn{4}{l}{$^{\mathrm{a}}$Sample of a Table footnote.}
+\end{tabular}
+\label{tab1}
+\end{center}
+\end{table}
+
+%\begin{figure}[htbp]
+%\centerline{\includegraphics{fig1.png}}
+%\caption{Example of a figure caption.}
+%\label{fig}
+%\end{figure}
+
+Figure Labels: Use 8 point Times New Roman for Figure labels. Use words 
+rather than symbols or abbreviations when writing Figure axis labels to 
+avoid confusing the reader. As an example, write the quantity 
+``Magnetization'', or ``Magnetization, M'', not just ``M''. If including 
+units in the label, present them within parentheses. Do not label axes only 
+with units. In the example, write ``Magnetization (A/m)'' or ``Magnetization 
+\{A[m(1)]\}'', not just ``A/m''. Do not label axes with a ratio of 
+quantities and units. For example, write ``Temperature (K)'', not 
+``Temperature/K''.
+
+\section*{Acknowledgment}
+
+The preferred spelling of the word ``acknowledgment'' in America is without 
+an ``e'' after the ``g''. Avoid the stilted expression ``one of us (R. B. 
+G.) thanks $\ldots$''. Instead, try ``R. B. G. thanks$\ldots$''. Put sponsor 
+acknowledgments in the unnumbered footnote on the first page.
+
+\section*{References}
+
+Please number citations consecutively within brackets \cite{b1}. The 
+sentence punctuation follows the bracket \cite{b2}. Refer simply to the reference 
+number, as in \cite{b3}---do not use ``Ref. \cite{b3}'' or ``reference \cite{b3}'' except at 
+the beginning of a sentence: ``Reference \cite{b3} was the first $\ldots$''
+
+Number footnotes separately in superscripts. Place the actual footnote at 
+the bottom of the column in which it was cited. Do not put footnotes in the 
+abstract or reference list. Use letters for table footnotes.
+
+Unless there are six authors or more give all authors' names; do not use 
+``et al.''. Papers that have not been published, even if they have been 
+submitted for publication, should be cited as ``unpublished'' \cite{b4}. Papers 
+that have been accepted for publication should be cited as ``in press'' \cite{b5}. 
+Capitalize only the first word in a paper title, except for proper nouns and 
+element symbols.
+
+For papers published in translation journals, please give the English 
+citation first, followed by the original foreign-language citation \cite{b6}.
+
+\begin{thebibliography}{00}
+\bibitem{b1} G. Eason, B. Noble, and I. N. Sneddon, ``On certain integrals of Lipschitz-Hankel type involving products of Bessel functions,'' Phil. Trans. Roy. Soc. London, vol. A247, pp. 529--551, April 1955.
+\bibitem{b2} J. Clerk Maxwell, A Treatise on Electricity and Magnetism, 3rd ed., vol. 2. Oxford: Clarendon, 1892, pp.68--73.
+\bibitem{b3} I. S. Jacobs and C. P. Bean, ``Fine particles, thin films and exchange anisotropy,'' in Magnetism, vol. III, G. T. Rado and H. Suhl, Eds. New York: Academic, 1963, pp. 271--350.
+\bibitem{b4} K. Elissa, ``Title of paper if known,'' unpublished.
+\bibitem{b5} R. Nicole, ``Title of paper with only first word capitalized,'' J. Name Stand. Abbrev., in press.
+\bibitem{b6} Y. Yorozu, M. Hirano, K. Oka, and Y. Tagawa, ``Electron spectroscopy studies on magneto-optical media and plastic substrate interface,'' IEEE Transl. J. Magn. Japan, vol. 2, pp. 740--741, August 1987 [Digests 9th Annual Conf. Magnetics Japan, p. 301, 1982].
+\bibitem{b7} M. Young, The Technical Writer's Handbook. Mill Valley, CA: University Science, 1989.
+\end{thebibliography}
+\vspace{12pt}
+\color{red}
+IEEE conference templates contain guidance text for composing and formatting conference papers. Please ensure that all template text is removed from your conference paper prior to submission to the conference. Failure to remove the template text from your paper may result in your paper not being published.
+
+\end{document}
